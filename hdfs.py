@@ -1,5 +1,6 @@
 import fnmatch
 import os
+import os.path
 import subprocess
 from hdfs3 import HDFileSystem
 
