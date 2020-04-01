@@ -3,21 +3,40 @@ import fnmatch
 import subprocess
 from hdfs3 import HDFileSystem
 
+class ResquestResult:
 
-class HDFS:
+    def __init__(self, status:bool, sucess_msg:str, erro:str):
+        self.status =  status
+        self.erro =  erro
+        self.sucess_msg = sucess_msg
 
     @staticmethod
-    def upload(client: HDFileSystem, hdfs_path: str, local_path: str):
+    def ofOk(sucess_msg:str = None):ResquestResult
+        return ResquestResult(True, sucess_msg, None)
+    
+    @staticmethod
+    def ofError(err_msg:str = None):ResquestResult
+        return ResquestResult(False, sucess_msg, None)
+    
+
+class HDFSWrapper:
+
+    def __init__(self, hdfsClient:HDFileSystem):
+        self._hdfsClient  = hdfsClient
+    
+    def getClient(self):
+        return self.hdfs_client
+
+    def upload(self, hdfs_path: str, local_path: str):ResquestResult
         try:
             file_name = os.path.basename(local_path)
-            client.put(local_path,os.path.join(hdfs_path, file_name))
+            self.hdfsClient.put(local_path,os.path.join(hdfs_path, file_name))
         except:
             print("Error upload file.....!" + local_path)
 
-    @staticmethod
-    def download(client: HDFileSystem, hdfs_file_path: str, local_save_path: str=None):
+    def download(self, hdfs_file_path: str, local_save_path: str=None):
         try:
-            if client.exists(hdfs_file_path) is False:
+            if self.hdfsClient.exists(hdfs_file_path) is False:
                 return None, "File {} not exist.".format(hdfs_file_path)
             
             local_file_name = hdfs_file_path
@@ -30,7 +49,7 @@ class HDFS:
             local_file_path = os.path.join(local_folder_path, local_file_name + ext)
             os.makedirs(local_folder_path, exist_ok=True)
             
-            client.get(hdfs_file_path, local_file_path)
+            self.hdfsClient.get(hdfs_file_path, local_file_path)
             return local_file_path, None
         except:
             return None, "Download File {} failure.".format(hdfs_file_path)
@@ -91,7 +110,7 @@ class HDFS:
         return None
 
     @staticmethod
-    def _hdfs_connect_kerberos(hdfs_name_services: str, hdfs_replication: str, user: str, hdfs_host_services: str,
+    def hdfs_connect_kerberos(hdfs_name_services: str, hdfs_replication: str, user: str, hdfs_host_services: str,
                                hdfs_kbr5_user_keytab_path: str, hdfs_krb5_username: str):
         host = hdfs_name_services
         print("Usando KerberosClient...")
@@ -107,12 +126,13 @@ class HDFS:
             hdfs_client = _renew_ticket_cache(conf, hdfs_name_services, user, hdfs_kbr5_user_keytab_path,
                                                    hdfs_krb5_username, message="ERROR: Problems to renew Ticket Cache!")
 
-        return hdfs_client
+        return HDFSWrapper(hdfs_client)
 
     @staticmethod
-    def _hdfs_connect_withoutlogin(hdfs_name_services: str, user: str, hdfs_replication: str, hdfs_host_services: str):
+    def hdfs_connect_withoutlogin(hdfs_name_services: str, user: str, hdfs_replication: str, hdfs_host_services: str):HDFSWrapper
         host = hdfs_name_services
         print("Usando InsecureClient...")
         conf = _create_hdfs3_conf(False, hdfs_name_services, hdfs_replication, hdfs_host_services)
         hdfs_client = HDFileSystem(host=host, port=None, user=user, pars=conf)
-        return hdfs_client
+        return HDFSWrapper(hdfs_client)
+
