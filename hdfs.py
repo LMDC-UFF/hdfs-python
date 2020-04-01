@@ -1,53 +1,92 @@
-import fnmatch
 import os
-import os.path
+import fnmatch
 import subprocess
 from hdfs3 import HDFileSystem
 
+
 class LocalHDFS:
 
-    def __init__(self, hdfs_name_services: str, auth_mechanism: str, user: str, hdfs_host_services: str, hdfs_replication: str, **kwargs):
+    def __init__(self, hdfs_name_services: str, hdfs_host_services: str, user: str, 
+                 auth_mechanism: str, hdfs_replication: str, **kwargs):
+        self.hdfs_name_services = hdfs_name_services
+        self.hdfs_host_services = hdfs_host_services
+        self.user = user
+        self.auth_mechanism = auth_mechanism
+        self.hdfs_replication = hdfs_replication
+        self.hdfs_kbr5_user_keytab_path = kwargs.get('hdfs_kbr5_user_keytab_path')
+        self.hdfs_krb5_username = kwargs.get('hdfs_krb5_username')
+        self.client = self._hdfs3Connect()
+    
+    def upload(self, hdfs_path: str, local_path: str, overwrite: bool=True):
         try:
-            #host = os.environ['HDFS_NAMESERVICES'].split(",")[0]
-            if auth_mechanism in ['GSSAPI', 'LDAP']:
-                self.client = self.hdfs_connect_kerberos(hdfs_name_services, user, hdfs_host_services,
-                                                         hdfs_replication, kwargs.get(hdfs_kbr5_huser_keytab_path), kwargs.get(hdfs_krb5_username))
+            file_name = os.path.basename(local_path)
+            self.client.put(local_path,os.path.join(hdfs_path, file_name))
+        except:
+            print("Error upload file.....!" + local_path)
+
+    def download(self, hdfs_file_path: str, local_save_path: str=None):
+        try:
+            if self.client.exists(hdfs_file_path) is False:
+                return None, "File {} not exist.".format(hdfs_file_path)
+            
+            local_file_name = hdfs_file_path
+            local_file_name, ext = os.path.splitext(local_file_name)
+            
+            local_folder_path = local_save_path
+            if local_save_path is None:
+                local_folder_path = os.path.join((os.sep + "tmp"), local_file_name)
+            
+            local_file_path = os.path.join(local_folder_path, local_file_name + ext)
+            os.makedirs(local_folder_path, exist_ok=True)
+            
+            self.client.get(hdfs_file_path, local_file_path)
+            return local_file_path, None
+        except:
+            return None, "Download File {} failure.".format(hdfs_file_path)
+    
+    def _hdfs3Connect(self):
+        try:
+            myclient = None
+            if self.auth_mechanism in ['GSSAPI', 'LDAP']:
+                myclient = self._hdfs_connect_kerberos()
             else:
-                self.client = self.hdfs_connect_WithoutLogin(hdfs_name_services, user, hdfs_host_services, hdfs_replication)
-            print("STATUS HDFS:", self.client)
+                myclient = self._hdfs_connect_WithoutLogin()
+            print("STATUS HDFS:", myclient)
+            return myclient
         except:
             print("Conecction failure...!")
-            raise
+            return None
     
-    def create_hdfs3_conf(self, nameservices: str, urls: str, dfs_replication: str, use_kerberos: bool):
+    def _create_hdfs3_conf(self, use_kerberos: bool):
         # nameservices: str
         # namenodes: str ("nn1,nn2,...")
         # url: str ("url1,url2,..") 
         # dfs_replication: str(number)
         # use_kerberos: bool
-        conf={"dfs.nameservices": nameservices,
+        conf={"dfs.nameservices": self.hdfs_name_services,
             "dfs.client.use.datanode.hostname": "true",
-            "dfs.replication": dfs_replication
+            "dfs.replication": self.hdfs_replication
         }
         
         if use_kerberos:
             conf["hadoop.security.authentication"] = "kerberos"
 
         name_nodes = []
+        urls = self.hdfs_host_services
         list_urls = urls.split(",")
         for i in range(len(list_urls)):
             name_nodes.append('nn' + str(i+1))
-        conf["dfs.ha.namenodes." + nameservices] = ",".join(name_nodes)
+        conf["dfs.ha.namenodes." + self.hdfs_name_services] = ",".join(name_nodes)
         for i in range(len(list_urls)):
-            conf['dfs.namenode.rpc-address.' + nameservices + '.' + 'nn' + str(i+1)] = list_urls[i]
+            conf['dfs.namenode.rpc-address.' + self.hdfs_name_services + '.' + 'nn' + str(i+1)] = list_urls[i]
         
         return conf
 
-    def generate_ticket_cache(self, hdfs_kbr5_huser_keytab_path: str, hdfs_krb5_username: str):
+    def _generate_ticket_cache(self):
         """
         Status is 0 when the subprocess is succeful!
         """
-        kt_cmd = 'kinit -kt ' + hdfs_kbr5_huser_keytab_path + ' ' + hdfs_krb5_username
+        kt_cmd = 'kinit -kt ' + self.hdfs_kbr5_user_keytab_path + ' ' + self.hdfs_krb5_username
         status = subprocess.call([kt_cmd], shell=True)
 
         if status != 0:
@@ -55,86 +94,41 @@ class LocalHDFS:
             print(subprocess.call([kt_cmd], shell=True))
         return status==0
 
-    def get_ticket_cache(self):
+    def _get_ticket_cache(self):
         path = '/tmp'
         ticket = 'krb5cc_*'
         res = fnmatch.filter(os.listdir(path), ticket)
         res_ = res[0] if len(res)>0 else None
         return res_  
 
-    def renew_ticket_cache(self, hdfs_host: str, user: str, conf: dict, hdfs_kbr5_huser_keytab_path: str, hdfs_krb5_username: str, message=""):
-        status = generate_ticket_cache(hdfs_kbr5_huser_keytab_path, hdfs_krb5_username)
+    def _renew_ticket_cache(self, conf: dict, message: str=""):
+        hdfs_host = self.hdfs_name_services
+        status = self._generate_ticket_cache()
         if status:
-            ticket_cache = get_ticket_cache()
-            return HDFileSystem(host=hdfs_host, port=None, user=user, pars = conf, ticket_cache=ticket_cache)
+            ticket_cache = self._get_ticket_cache()
+            return HDFileSystem(host=hdfs_host, port=None, user=self.user, pars=conf, ticket_cache=ticket_cache)
         else:
             print(message)
         return None
 
-
-    def hdfs_connect_kerberos(self, hdfs_name_services: str, user: str, hdfs_host_services: str, hdfs_replication: str, hdfs_kbr5_huser_keytab_path: str, hdfs_krb5_username: str):
-
-        host = hdfs_name_services
-        # host, port = str(url).split(":")
-        # port = int(port)
-
+    def _hdfs_connect_kerberos(self):
+        host = self.hdfs_name_services
         print("Usando KerberosClient...")
-        conf = create_hdfs3_conf( host,
-                                  hdfs_host_services,
-                                  hdfs_replication,
-                                    True)
+        conf = self._create_hdfs3_conf(use_kerberos=True)
         try:
-            ticket_cache = get_ticket_cache()
+            ticket_cache = self._get_ticket_cache()
             if ticket_cache is not None:
                 hdfs_client = HDFileSystem(host=host, port=None, user=user, pars = conf, ticket_cache=ticket_cache)
             else: 
-                hdfs_client = renew_ticket_cache(host, user, conf, hdfs_kbr5_huser_keytab_path, hdfs_krb5_username, message="ERROR: Problems to generate Ticket Cache!")
+                hdfs_client = self._renew_ticket_cache(conf, message="ERROR: Problems to generate Ticket Cache!")
         except:
-            hdfs_client = renew_ticket_cache(host, user, conf, message="ERROR: Problems to renew Ticket Cache!")
+            hdfs_client = self._renew_ticket_cache(conf, message="ERROR: Problems to renew Ticket Cache!")
 
         return hdfs_client
     
-    def hdfs_connect_withoutlogin(self, hdfs_name_services: str, user: str, hdfs_host_services: str, hdfs_replication: str):
-
-        host = hdfs_name_services
-        # host, port = str(url).split(":")
-        # port = int(port)
-
+    def _hdfs_connect_withoutlogin(self):
+        host = self.hdfs_name_services
         print("Usando InsecureClient...")
-        conf = create_hdfs3_conf(host,
-                                 hdfs_host_services,
-                                 hdfs_replication,
-                                False)
-        hdfs_client = HDFileSystem(host=host, port=None, user=user, pars=conf)
-
+        conf = self._create_hdfs3_conf(use_kerberos=False)
+        hdfs_client = HDFileSystem(host=host, port=None, user=self.user, pars=conf)
         return hdfs_client
-
-    
-    def upload(self, hdfs_path: str, local_path: str, overwrite: bool):
-        try:
-            # self.client.upload(hdfs_path, local_path, overwrite=overwrite)
-            file_name = os.path.basename(local_path)
-            self.client.put(local_path,os.path.join(hdfs_path, file_name))
-        except:
-            print("Error upload file.....!" + local_path)
-
-
-    def download(self, hdfs_file_path: str, local_save_path=None):
-        try:
-            if self.client.exists(hdfs_file_path) is False:
-                return None, "File {} not exist.".format(hdfs_file_path)
-            # doc = self.read(hdfs_file_path)
-            local_file_name = hdfs_file_path
-            local_file_name, ext = os.path.splitext(local_file_name)
-            
-            local_folder_path = local_save_path
-            if local_save_path is None:
-                local_folder_path = os.path.join(join(os.sep + "tmp"), local_file_name)
-            
-            local_file_path = os.path.join(local_folder_path, local_file_name + ext)
-            os.makedirs(local_folder_path, exist_ok=True)
-            # local_file_path = self.save_local(doc, local_file_path)
-            self.client.get(hdfs_file_path, local_file_path)
-            return local_file_path, None
-        except:
-            return None, "Download File {} failure.".format(hdfs_file_path)
