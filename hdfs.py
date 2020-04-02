@@ -3,36 +3,37 @@ import fnmatch
 import subprocess
 from hdfs3 import HDFileSystem
 
-class ResquestResult:
+class RequestResult:
 
-    def __init__(self, status:bool, sucess_msg:str, erro:str):
+    def __init__(self, status:bool, success_msg:str, erro:str):
         self.status =  status
         self.erro =  erro
-        self.sucess_msg = sucess_msg
+        self.success_msg = success_msg
 
     @staticmethod
-    def ofOk(sucess_msg:str = None):ResquestResult
-        return ResquestResult(True, sucess_msg, None)
+    def ofOk(success_msg:str = None):
+        return RequestResult(True, success_msg, None)
     
     @staticmethod
-    def ofError(err_msg:str = None):ResquestResult
-        return ResquestResult(False, sucess_msg, None)
+    def ofError(err_msg:str = None):
+        return RequestResult(False, None, err_msg)
     
 
 class HDFSWrapper:
 
-    def __init__(self, hdfsClient:HDFileSystem):
-        self._hdfsClient  = hdfsClient
+    def __init__(self, hdfsclient: HDFileSystem):
+        self._hdfsClient  = hdfsclient
     
     def getClient(self):
-        return self.hdfs_client
+        return self._hdfsClient
 
-    def upload(self, hdfs_path: str, local_path: str):ResquestResult
+    def upload(self, hdfs_path: str, local_path: str)-> RequestResult:
         try:
             file_name = os.path.basename(local_path)
             self.hdfsClient.put(local_path,os.path.join(hdfs_path, file_name))
+            return RequestResult.ofOk("File Uploaded")
         except:
-            print("Error upload file.....!" + local_path)
+            return RequestResult.ofError("Error upload file...! {}".format(local_path))
 
     def download(self, hdfs_file_path: str, local_save_path: str=None):
         try:
@@ -52,11 +53,12 @@ class HDFSWrapper:
             self.hdfsClient.get(hdfs_file_path, local_file_path)
             return local_file_path, None
         except:
-            return None, "Download File {} failure.".format(hdfs_file_path)
+            return None, RequestResult.ofError("Download File {} failure.".format(hdfs_file_path))
 
 
     @staticmethod
-    def _create_hdfs3_conf(use_kerberos: bool, hdfs_name_services: str, hdfs_replication: str, hdfs_host_services: str):
+    def _create_hdfs3_conf(use_kerberos: bool, hdfs_name_services: str, hdfs_replication: str,
+                           hdfs_host_services: str) -> dict:
 
         conf={"dfs.nameservices": hdfs_name_services,
             "dfs.client.use.datanode.hostname": "true",
@@ -78,10 +80,10 @@ class HDFSWrapper:
         return conf
 
     @staticmethod
-    def _generate_ticket_cache(hdfs_kbr5_user_keytab_path: str, hdfs_krb5_username: str):
-        """
-        Status is 0 when the subprocess is succeful!
-        """
+    def _generate_ticket_cache(hdfs_kbr5_user_keytab_path: str, hdfs_krb5_username: str) -> bool:
+       
+        #Status is 0 when the subprocess is succeful!
+       
         kt_cmd = 'kinit -kt ' + hdfs_kbr5_user_keytab_path + ' ' + hdfs_krb5_username
         status = subprocess.call([kt_cmd], shell=True)
 
@@ -101,38 +103,37 @@ class HDFSWrapper:
     @staticmethod
     def _renew_ticket_cache(conf: dict, hdfs_name_services: str, user: str, hdfs_kbr5_user_keytab_path: str, hdfs_krb5_username: str, message: str=""):
         hdfs_host = hdfs_name_services
-        status = _generate_ticket_cache(hdfs_kbr5_user_keytab_path, hdfs_krb5_username)
+        status = HDFSWrapper._generate_ticket_cache(hdfs_kbr5_user_keytab_path, hdfs_krb5_username)
         if status:
-            ticket_cache = _get_ticket_cache()
+            ticket_cache = HDFSWrapper._get_ticket_cache()
             return HDFileSystem(host=hdfs_host, port=None, user=user, pars=conf, ticket_cache=ticket_cache)
         else:
-            print(message)
+            RequestResult.ofError(message)
         return None
 
     @staticmethod
     def hdfs_connect_kerberos(hdfs_name_services: str, hdfs_replication: str, user: str, hdfs_host_services: str,
-                               hdfs_kbr5_user_keytab_path: str, hdfs_krb5_username: str):
+                               hdfs_kbr5_user_keytab_path: str, hdfs_krb5_username: str)-> HDFSWrapper:
         host = hdfs_name_services
         print("Usando KerberosClient...")
-        conf = _create_hdfs3_conf(True, hdfs_name_services, hdfs_replication, hdfs_host_services)
+        conf = HDFSWrapper._create_hdfs3_conf(True, hdfs_name_services, hdfs_replication, hdfs_host_services)
         try:
-            ticket_cache = _get_ticket_cache()
+            ticket_cache = HDFSWrapper._get_ticket_cache()
             if ticket_cache is not None:
                 hdfs_client = HDFileSystem(host=host, port=None, user=user, pars = conf, ticket_cache=ticket_cache)
             else: 
-                hdfs_client = _renew_ticket_cache(conf, hdfs_name_services, user, hdfs_kbr5_user_keytab_path,
+                hdfs_client = HDFSWrapper._renew_ticket_cache(conf, hdfs_name_services, user, hdfs_kbr5_user_keytab_path,
                                                   hdfs_krb5_username, message="ERROR: Problems to generate Ticket Cache!")
         except:
-            hdfs_client = _renew_ticket_cache(conf, hdfs_name_services, user, hdfs_kbr5_user_keytab_path,
+            hdfs_client = HDFSWrapper._renew_ticket_cache(conf, hdfs_name_services, user, hdfs_kbr5_user_keytab_path,
                                                    hdfs_krb5_username, message="ERROR: Problems to renew Ticket Cache!")
 
         return HDFSWrapper(hdfs_client)
 
     @staticmethod
-    def hdfs_connect_withoutlogin(hdfs_name_services: str, user: str, hdfs_replication: str, hdfs_host_services: str):HDFSWrapper
+    def hdfs_connect_withoutlogin(hdfs_name_services: str, user: str, hdfs_replication: str, hdfs_host_services: str)->HDFSWrapper:
         host = hdfs_name_services
         print("Usando InsecureClient...")
-        conf = _create_hdfs3_conf(False, hdfs_name_services, hdfs_replication, hdfs_host_services)
+        conf = HDFSWrapper._create_hdfs3_conf(False, hdfs_name_services, hdfs_replication, hdfs_host_services)
         hdfs_client = HDFileSystem(host=host, port=None, user=user, pars=conf)
         return HDFSWrapper(hdfs_client)
-
