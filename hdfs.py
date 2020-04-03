@@ -27,20 +27,20 @@ class HDFSWrapper:
     def getClient(self):
         return self._hdfsClient
 
-    def upload(self, hdfs_path: str, local_path: str)-> RequestResult:
+    def upload(self, local_path: str, hdfs_path: str)-> RequestResult:
         try:
             file_name = os.path.basename(local_path)
-            self.hdfsClient.put(local_path,os.path.join(hdfs_path, file_name))
+            self._hdfsClient.put(local_path,os.path.join(hdfs_path, file_name))
             return RequestResult.ofOk("File Uploaded")
         except:
             return RequestResult.ofError("Error upload file...! {}".format(local_path))
 
     def download(self, hdfs_file_path: str, local_save_path: str=None):
         try:
-            if self.hdfsClient.exists(hdfs_file_path) is False:
+            if self._hdfsClient.exists(hdfs_file_path) is False:
                 return None, RequestResult.ofError("File {} not exist.".format(hdfs_file_path))
             
-            local_file_name = hdfs_file_path
+            _, local_file_name = os.path.split(hdfs_file_path)
             local_file_name, ext = os.path.splitext(local_file_name)
             
             local_folder_path = local_save_path
@@ -49,8 +49,8 @@ class HDFSWrapper:
             
             local_file_path = os.path.join(local_folder_path, local_file_name + ext)
             os.makedirs(local_folder_path, exist_ok=True)
+            self._hdfsClient.get(hdfs_file_path, local_file_path)
             
-            self.hdfsClient.get(hdfs_file_path, local_file_path)
             return local_file_path, RequestResult.ofOk("File downloaded")
         except:
             return None, RequestResult.ofError("Download File {} failure.".format(hdfs_file_path))
@@ -113,7 +113,7 @@ class HDFSWrapper:
 
     @staticmethod
     def hdfs_connect_kerberos(hdfs_name_services: str, hdfs_replication: str, user: str, hdfs_host_services: str,
-                               hdfs_kbr5_user_keytab_path: str, hdfs_krb5_username: str)-> HDFSWrapper:
+                               hdfs_kbr5_user_keytab_path: str, hdfs_krb5_username: str):
         host = hdfs_name_services
         print("Usando KerberosClient...")
         conf = HDFSWrapper.create_hdfs3_conf(True, hdfs_name_services, hdfs_replication, hdfs_host_services)
@@ -131,7 +131,7 @@ class HDFSWrapper:
         return HDFSWrapper(hdfs_client)
 
     @staticmethod
-    def hdfs_connect_withoutlogin(hdfs_name_services: str, user: str, hdfs_replication: str, hdfs_host_services: str)->HDFSWrapper:
+    def hdfs_connect_withoutlogin(hdfs_name_services: str, user: str, hdfs_replication: str, hdfs_host_services: str):
         host = hdfs_name_services
         print("Usando InsecureClient...")
         conf = HDFSWrapper.create_hdfs3_conf(False, hdfs_name_services, hdfs_replication, hdfs_host_services)
