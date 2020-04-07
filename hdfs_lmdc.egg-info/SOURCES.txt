@@ -1,0 +1,12 @@
+LICENSE
+MANIFEST.in
+README.md
+setup.py
+hdfs_lmdc/demo.py
+hdfs_lmdc/hdfs.py
+hdfs_lmdc.egg-info/PKG-INFO
+hdfs_lmdc.egg-info/SOURCES.txt
+hdfs_lmdc.egg-info/dependency_links.txt
+hdfs_lmdc.egg-info/entry_points.txt
+hdfs_lmdc.egg-info/requires.txt
+hdfs_lmdc.egg-info/top_level.txt

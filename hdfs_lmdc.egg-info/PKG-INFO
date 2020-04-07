@@ -1,0 +1,26 @@
+Metadata-Version: 2.1
+Name: hdfs-lmdc
+Version: 1.0.0
+Summary: Esta biblioteca tem como objetivo generalizar funções da integração entre HDFS e Python utilizando HDFS3
+Home-page: https://github.com/LMDC-UFF/hdfs-python
+Author: LMDC-UFF
+Author-email: opensource@lmdc.uff.br
+License: MIT
+Description: # hdfs-python
+        Esta biblioteca tem como objetivo generalizar funções da integração entre HDFS e Python utilizando HDFS3
+        
+        
+        ## Como usar localmente
+        
+        Para utilizar esta biblioteca localmente, é necessário cloná-la para o diretório onde se encontra o arquivo no qual você deseja importar a mesma. Isto fará com que a biblioteca esteja somente disponível para tal diretório. 
+        
+        ## Como usar globalmente
+        
+        Utilizar com PyPip.
+        
+Platform: UNKNOWN
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Description-Content-Type: text/markdown
