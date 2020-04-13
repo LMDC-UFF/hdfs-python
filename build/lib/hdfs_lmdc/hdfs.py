@@ -1,6 +1,7 @@
 import os
 import fnmatch
 import subprocess
+from PIL import Image
 from hdfs3 import HDFileSystem
 
 class RequestResult:
@@ -54,6 +55,38 @@ class HDFSWrapper:
             return local_file_path, RequestResult.ofOk("File downloaded")
         except:
             return None, RequestResult.ofError("Download File {} failure.".format(hdfs_file_path))
+
+    def read_image(self, hdfs_image_path: str):
+        """Read an image from HDFS
+ 
+        Parameters
+        ---------- 
+        hdfs_image_path : str
+            HDFS full path, including file's name
+        
+        Returns
+        -------
+        doc: Any
+            Image loaded in memory by the pillow package
+        """
+        try:
+            if self._hdfsClient.exists(hdfs_image_path) is False:
+                return (
+                    None,
+                    RequestResult.ofError(
+                        "File {} not exist.".format(hdfs_image_path)
+                    ),
+                )
+            with self._hdfsClient.open(hdfs_image_path) as reader:
+                img = Image.open(reader)
+        except:
+            return (
+                None,
+                RequestResult.ofError(
+                    "Could not open file {}.".format(hdfs_image_path)
+                ),
+            )
+        return img
 
 
     @staticmethod

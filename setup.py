@@ -8,7 +8,7 @@ def readme():
 # This call to setup() does all the work
 setup(
     name="hdfs-lmdc",
-    version="1.0.1",
+    version="1.0.2",
     description="Esta biblioteca tem como objetivo generalizar funções da integração entre HDFS e Python utilizando HDFS3",
     long_description=readme(),
     long_description_content_type="text/markdown",
