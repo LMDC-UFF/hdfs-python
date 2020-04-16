@@ -80,7 +80,7 @@ class HDFSWrapper:
             with self._hdfsClient.open(hdfs_image_path) as reader:
                 img = Image.open(reader)
                 return (
-                    img.covert('RGB'),
+                    img.convert('RGB'),
                     RequestResult.ofOk(
                         "File {} readed and converted to RGB.".format(hdfs_image_path)
                     ),
