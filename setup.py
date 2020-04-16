@@ -8,7 +8,7 @@ def readme():
 # This call to setup() does all the work
 setup(
     name="hdfs-lmdc",
-    version="1.0.2",
+    version="1.0.3",
     description="Esta biblioteca tem como objetivo generalizar funções da integração entre HDFS e Python utilizando HDFS3",
     long_description=readme(),
     long_description_content_type="text/markdown",
@@ -24,7 +24,7 @@ setup(
     ],
     packages=["hdfs_lmdc"],
     include_package_data=True,
-    install_requires=["hdfs3"],
+    install_requires=["hdfs3", "pillow==6.2.2"],
     entry_points={
         "console_scripts": [
             "hdfs-lmdc=hdfs_lmdc.demo:main",

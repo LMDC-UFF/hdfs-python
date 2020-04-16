@@ -79,6 +79,12 @@ class HDFSWrapper:
                 )
             with self._hdfsClient.open(hdfs_image_path) as reader:
                 img = Image.open(reader)
+                return (
+                    img.covert('RGB'),
+                    RequestResult.ofOk(
+                        "File {} readed and converted to RGB.".format(hdfs_image_path)
+                    ),
+                )
         except:
             return (
                 None,
@@ -86,7 +92,6 @@ class HDFSWrapper:
                     "Could not open file {}.".format(hdfs_image_path)
                 ),
             )
-        return img
 
 
     @staticmethod

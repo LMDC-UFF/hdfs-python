@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: hdfs-lmdc
-Version: 1.0.2
+Version: 1.0.3
 Summary: Esta biblioteca tem como objetivo generalizar funções da integração entre HDFS e Python utilizando HDFS3
 Home-page: https://github.com/LMDC-UFF/hdfs-python
 Author: LMDC-UFF
