@@ -93,7 +93,7 @@ class HDFSWrapper:
                 ),
             )
 
-    def read_txt(self, hdfs_text_path: str):
+    def read_txt(self, hdfs_text_path: str) -> str:
         """Read a text file (txt) from HDFS
  
         Parameters
