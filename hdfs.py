@@ -93,6 +93,39 @@ class HDFSWrapper:
                 ),
             )
 
+    def read_txt(self, hdfs_text_path: str):
+        """Read a text file (txt) from HDFS
+ 
+        Parameters
+        ---------- 
+        hdfs_text_path : str
+            HDFS full path, including file's name
+        
+        Returns
+        -------
+        doc: str
+            Text content
+        """
+        doc: str = None
+        try:
+            if self._hdfsClient.exists(hdfs_text_path) is False:
+                return (
+                    None,
+                    RequestResult.ofError(
+                        "File {} not exist.".format(hdfs_text_path)
+                    ),
+                )
+            with self._hdfsClient.open(hdfs_text_path) as reader:
+                doc = reader.read()
+                return doc.decode("utf-8")
+        except:
+            return (
+                None,
+                RequestResult.ofError(
+                    "Could not open file {}.".format(hdfs_text_path)
+                ),
+            )
+        return doc
 
     @staticmethod
     def create_hdfs3_conf(use_kerberos: bool, hdfs_name_services: str, hdfs_replication: str,
