@@ -117,7 +117,12 @@ class HDFSWrapper:
                 )
             with self._hdfsClient.open(hdfs_text_path) as reader:
                 doc = reader.read()
-                return doc.decode("utf-8")
+                return (
+                    doc.decode("utf-8"), 
+                    RequestResult.ofOk(
+                        "File {} read successfully.".format(hdfs_text_path)
+                    ),
+                )
         except:
             return (
                 None,
