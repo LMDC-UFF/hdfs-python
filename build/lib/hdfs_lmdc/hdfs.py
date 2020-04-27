@@ -93,14 +93,53 @@ class HDFSWrapper:
                 ),
             )
 
+    def read_txt(self, hdfs_text_path: str) -> str:
+        """Read a text file (txt) from HDFS
+ 
+        Parameters
+        ---------- 
+        hdfs_text_path : str
+            HDFS full path, including file's name
+        
+        Returns
+        -------
+        doc: str
+            Text content
+        """
+        doc: str = None
+        try:
+            if self._hdfsClient.exists(hdfs_text_path) is False:
+                return (
+                    None,
+                    RequestResult.ofError(
+                        "File {} not exist.".format(hdfs_text_path)
+                    ),
+                )
+            with self._hdfsClient.open(hdfs_text_path) as reader:
+                doc = reader.read()
+                return (
+                    doc.decode("utf-8"), 
+                    RequestResult.ofOk(
+                        "File {} read successfully.".format(hdfs_text_path)
+                    ),
+                )
+        except:
+            return (
+                None,
+                RequestResult.ofError(
+                    "Could not open file {}.".format(hdfs_text_path)
+                ),
+            )
+        return doc
 
     @staticmethod
     def create_hdfs3_conf(use_kerberos: bool, hdfs_name_services: str, hdfs_replication: str,
-                           hdfs_host_services: str) -> dict:
+                           hdfs_host_services: str, shortcircuit: str='false') -> dict:
 
         conf={"dfs.nameservices": hdfs_name_services,
             "dfs.client.use.datanode.hostname": "true",
-            "dfs.replication": hdfs_replication
+            "dfs.replication": hdfs_replication,
+            'dfs.client.read.shortcircuit': shortcircuit
         }
         
         if use_kerberos:
@@ -151,10 +190,10 @@ class HDFSWrapper:
 
     @staticmethod
     def hdfs_connect_kerberos(hdfs_name_services: str, hdfs_replication: str, user: str, hdfs_host_services: str,
-                               hdfs_kbr5_user_keytab_path: str, hdfs_krb5_username: str):
+                               hdfs_kbr5_user_keytab_path: str, hdfs_krb5_username: str, shortcircuit: str='false'):
         host = hdfs_name_services
         print("Usando KerberosClient...")
-        conf = HDFSWrapper.create_hdfs3_conf(True, hdfs_name_services, hdfs_replication, hdfs_host_services)
+        conf = HDFSWrapper.create_hdfs3_conf(True, hdfs_name_services, hdfs_replication, hdfs_host_services, shortcircuit)
         try:
             ticket_cache = HDFSWrapper.get_ticket_cache()
             if ticket_cache is not None:
@@ -169,9 +208,9 @@ class HDFSWrapper:
         return HDFSWrapper(hdfs_client)
 
     @staticmethod
-    def hdfs_connect_withoutlogin(hdfs_name_services: str, user: str, hdfs_replication: str, hdfs_host_services: str):
+    def hdfs_connect_withoutlogin(hdfs_name_services: str, user: str, hdfs_replication: str, hdfs_host_services: str, shortcircuit: str='false'):
         host = hdfs_name_services
         print("Usando InsecureClient...")
-        conf = HDFSWrapper.create_hdfs3_conf(False, hdfs_name_services, hdfs_replication, hdfs_host_services)
+        conf = HDFSWrapper.create_hdfs3_conf(False, hdfs_name_services, hdfs_replication, hdfs_host_services, shortcircuit)
         hdfs_client = HDFileSystem(host=host, port=None, user=user, pars=conf)
         return HDFSWrapper(hdfs_client)
