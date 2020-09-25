@@ -6,21 +6,21 @@ from hdfs3 import HDFileSystem
 
 class RequestResult:
 
-    def __init__(self, status:bool, success_msg:str, erro:str):
-        self.status =  status
-        self.erro =  erro
+    def __init__(self, status: bool, success_msg: str, erro: str):
+        self.status = status
+        self.erro = erro
         self.success_msg = success_msg
 
     @staticmethod
-    def ofOk(success_msg:str = None):
+    def ofOk(success_msg: str = None):
         return RequestResult(True, success_msg, None)
-    
+
     @staticmethod
-    def ofError(err_msg:str = None):
+    def ofError(err_msg: str = None):
         return RequestResult(False, None, err_msg)
     
 
-class HDFSWrapper:
+class HDFSWrapperNativeClient:
 
     def __init__(self, hdfsclient: HDFileSystem):
         self._hdfsClient  = hdfsclient
@@ -180,9 +180,9 @@ class HDFSWrapper:
     @staticmethod
     def renew_ticket_cache(conf: dict, hdfs_name_services: str, user: str, hdfs_kbr5_user_keytab_path: str, hdfs_krb5_username: str, message: str=""):
         hdfs_host = hdfs_name_services
-        status = HDFSWrapper.generate_ticket_cache(hdfs_kbr5_user_keytab_path, hdfs_krb5_username)
+        status = HDFSWrapperNativeClient.generate_ticket_cache(hdfs_kbr5_user_keytab_path, hdfs_krb5_username)
         if status:
-            ticket_cache = HDFSWrapper.get_ticket_cache()
+            ticket_cache = HDFSWrapperNativeClient.get_ticket_cache()
             return HDFileSystem(host=hdfs_host, port=None, user=user, pars=conf, ticket_cache=ticket_cache)
         else:
             RequestResult.ofError(message)
@@ -193,24 +193,34 @@ class HDFSWrapper:
                                hdfs_kbr5_user_keytab_path: str, hdfs_krb5_username: str, shortcircuit: str='false'):
         host = hdfs_name_services
         print("Usando KerberosClient...")
-        conf = HDFSWrapper.create_hdfs3_conf(True, hdfs_name_services, hdfs_replication, hdfs_host_services, shortcircuit)
+        conf = HDFSWrapperNativeClient.create_hdfs3_conf(True, hdfs_name_services, hdfs_replication, hdfs_host_services, shortcircuit)
         try:
-            ticket_cache = HDFSWrapper.get_ticket_cache()
+            ticket_cache = HDFSWrapperNativeClient.get_ticket_cache()
             if ticket_cache is not None:
                 hdfs_client = HDFileSystem(host=host, port=None, user=user, pars = conf, ticket_cache=ticket_cache)
             else: 
-                hdfs_client = HDFSWrapper.renew_ticket_cache(conf, hdfs_name_services, user, hdfs_kbr5_user_keytab_path,
+                hdfs_client = HDFSWrapperNativeClient.renew_ticket_cache(conf, hdfs_name_services, user, hdfs_kbr5_user_keytab_path,
                                                   hdfs_krb5_username, message="ERROR: Problems to generate Ticket Cache!")
         except:
-            hdfs_client = HDFSWrapper.renew_ticket_cache(conf, hdfs_name_services, user, hdfs_kbr5_user_keytab_path,
+            hdfs_client = HDFSWrapperNativeClient.renew_ticket_cache(conf, hdfs_name_services, user, hdfs_kbr5_user_keytab_path,
                                                    hdfs_krb5_username, message="ERROR: Problems to renew Ticket Cache!")
 
-        return HDFSWrapper(hdfs_client)
+        return HDFSWrapperNativeClient(hdfs_client)
 
     @staticmethod
     def hdfs_connect_withoutlogin(hdfs_name_services: str, user: str, hdfs_replication: str, hdfs_host_services: str, shortcircuit: str='false'):
         host = hdfs_name_services
         print("Usando InsecureClient...")
-        conf = HDFSWrapper.create_hdfs3_conf(False, hdfs_name_services, hdfs_replication, hdfs_host_services, shortcircuit)
+        conf = HDFSWrapperNativeClient.create_hdfs3_conf(False, hdfs_name_services, hdfs_replication, hdfs_host_services, shortcircuit)
         hdfs_client = HDFileSystem(host=host, port=None, user=user, pars=conf)
-        return HDFSWrapper(hdfs_client)
+        return HDFSWrapperNativeClient(hdfs_client)
+
+
+from hdfs_lmdc.HDFSWrapperBase import HDFSWrapperBase
+from hdfs_lmdc.HDFSWrapperJava import HDFSWrapperJava
+
+class HDFSWrapperClient():
+
+    @staticmethod
+    def load_from_envs() -> HDFSWrapperBase:
+        return HDFSWrapperJava()
